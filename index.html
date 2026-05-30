@@ -204,7 +204,7 @@ let rows = [];
 let visibleRows = [];
 let selectedKeys = new Set();
 let unsubscribe = null;
-let sortNewestFirst = false; // mặc định: cũ nhất trước
+let sortNewestFirst = false; // mặc định: cũ nhất ở trên
 
 function safeKey(text) {
   return String(text || "")
@@ -260,7 +260,7 @@ function msToText(ms) {
 }
 
 function sortRows() {
-  rows.sort((a,b) => {
+  rows.sort((a, b) => {
     const aa = Number(a.createdAt || 0);
     const bb = Number(b.createdAt || 0);
     return sortNewestFirst ? (bb - aa) : (aa - bb);
@@ -270,8 +270,7 @@ function sortRows() {
 function updateSttHeader() {
   const h = $("sttHeader");
   if (!h) return;
-  const count = visibleRows.length || rows.length || 0;
-  h.textContent = sortNewestFirst ? `STT ▼ (${count})` : `STT ▲ (${count})`;
+  h.textContent = sortNewestFirst ? "STT ▼" : "STT ▲";
 }
 
 function openLive(liveName) {
