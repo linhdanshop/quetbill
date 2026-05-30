@@ -9,53 +9,77 @@
     body { margin:0; font-family: Arial, sans-serif; background:#f4f6f8; color:#111; }
     header {
       position: sticky; top:0; z-index:20;
-      background:#fff; border-bottom:1px solid #ddd;
-      padding:8px 10px;
+      background:#ffffff; border-bottom:2px solid #1976d2;
+      padding:6px 8px;
+      box-shadow:0 2px 8px rgba(0,0,0,.08);
     }
     .topline {
-      display:flex; gap:8px; align-items:center;
+      display:flex; gap:6px; align-items:center;
       flex-wrap:nowrap; overflow-x:auto; white-space:nowrap;
     }
-    .brand { font-size:20px; font-weight:800; margin-right:4px; }
+    .brand {
+      font-size:22px; font-weight:900; color:#0d47a1;
+      padding:3px 10px 3px 4px;
+      border-right:2px solid #1976d2;
+    }
     input, select, button {
-      height:34px; padding:5px 9px; border:1px solid #bbb;
-      border-radius:6px; font-size:14px; background:#fff;
+      height:30px; padding:3px 7px; border:1px solid #bbb;
+      border-radius:5px; font-size:13px; background:#fff;
     }
     button { cursor:pointer; font-weight:700; }
     .primary { background:#1976d2; color:#fff; border-color:#1976d2; }
     .green { background:#2e7d32; color:#fff; border-color:#2e7d32; }
+    .orange { background:#ef6c00; color:#fff; border-color:#ef6c00; }
     .danger { background:#d32f2f; color:#fff; border-color:#d32f2f; }
-    .status { font-size:13px; padding:7px 8px; border-radius:6px; background:#eee; }
-    .wrap { padding:10px; }
+    .status {
+      font-size:12px; padding:6px 7px; border-radius:5px;
+      background:#eef3ff; color:#0d47a1; font-weight:700;
+    }
+    .stats {
+      margin-top:4px; font-size:12px; color:#111; white-space:nowrap;
+      overflow-x:auto; padding:3px 0 0;
+    }
+    .stats b { color:#d32f2f; }
+    .wrap { padding:8px; }
     .table-wrap {
       background:#fff; border:1px solid #ddd; overflow:auto;
-      max-height:calc(100vh - 58px);
+      max-height:calc(100vh - 88px);
     }
     table { width:100%; border-collapse:collapse; min-width:1160px; }
-    th, td { border:1px solid #ddd; padding:6px 8px; font-size:14px; white-space:nowrap; }
-    th { position:sticky; top:0; z-index:5; background:#f1f3f4; text-align:left; }
+    th, td {
+      border:1px solid #ddd; padding:3px 6px;
+      font-size:12px; white-space:nowrap; line-height:1.15;
+    }
+    th {
+      position:sticky; top:0; z-index:5;
+      background:#0d47a1; color:white; text-align:left;
+      font-size:12px; padding:5px 6px;
+    }
     .filter-row th {
-      top:34px; background:#fafafa; z-index:4; padding:4px;
+      top:26px; background:#e3f2fd; color:#111; z-index:4; padding:3px;
     }
     .filter-row input, .filter-row select {
-      width:100%; height:28px; padding:3px 6px; font-size:13px;
+      width:100%; height:24px; padding:2px 5px; font-size:12px;
     }
     td[contenteditable="true"] { background:#fffdf4; outline:none; }
     tr:hover td { background:#f5faff; }
     tr.changed td { background:#fff3cd !important; }
-    tr.done td { background:#eee; color:#555; }
+    tr.done td { background:#eeeeee; color:#555; }
     tr.selected td { outline:2px solid #1976d2; outline-offset:-2px; }
     .msp { color:#1565c0; font-weight:700; }
     .gia { color:#d32f2f; font-weight:700; text-align:right; }
     .num { text-align:right; }
-    .muted { color:#666; font-size:12px; }
-    .pill { display:inline-block; padding:3px 8px; border-radius:999px; font-size:12px; font-weight:700; }
+    .muted { color:#666; font-size:11px; }
+    .pill {
+      display:inline-block; padding:2px 6px; border-radius:999px;
+      font-size:11px; font-weight:700;
+    }
     .todo-pill { background:#e8f5e9; color:#1b5e20; }
-    .done-pill { background:#eee; color:#555; }
-    .check { width:18px; height:18px; }
+    .done-pill { background:#eeeeee; color:#555; }
+    .check { width:16px; height:16px; }
     .login-box {
-      background:#fff; border:1px solid #ddd; margin:12px; padding:12px;
-      border-radius:8px; max-width:520px;
+      background:#fff; border:1px solid #ddd; margin:10px; padding:10px;
+      border-radius:8px; max-width:480px;
     }
     .login-box input { width:100%; margin:4px 0; }
     .hidden { display:none; }
@@ -68,17 +92,21 @@
     <div class="brand">QuetBill</div>
 
     <select id="liveSelect"></select>
-    <input id="customLive" placeholder="LIVE 30/5/2026" style="width:170px" />
+    <input id="customLive" placeholder="LIVE 30/5/2026" style="width:155px" />
     <button id="btnUseLive" class="primary">Mở</button>
 
-    <input id="globalSearch" placeholder="Tìm nhanh..." style="width:210px" />
+    <input id="globalSearch" placeholder="Tìm nhanh..." style="width:185px" />
 
     <button id="btnCopySelected" class="green">Copy 3 cột</button>
+    <button id="btnMarkTodo" class="orange">Chuyển chưa làm</button>
+    <button id="btnExportSelected" class="primary">Xuất Excel chọn</button>
     <button id="btnAdd" class="primary">Thêm</button>
 
     <span id="selectedInfo" class="status">Chọn: 0</span>
     <span id="status" class="status">Chưa đăng nhập</span>
   </div>
+
+  <div id="statsLine" class="stats">Thống kê: chưa có dữ liệu</div>
 </header>
 
 <div id="loginBox" class="login-box">
@@ -93,9 +121,9 @@
     <table>
       <thead>
         <tr>
-          <th style="width:42px"><input id="checkAll" type="checkbox" class="check"></th>
-          <th style="width:55px">STT</th>
-          <th style="width:95px">Đã làm</th>
+          <th style="width:38px"><input id="checkAll" type="checkbox" class="check"></th>
+          <th style="width:52px">STT</th>
+          <th style="width:85px">Đã làm</th>
           <th>MSP</th>
           <th>SĐT</th>
           <th>Giá</th>
@@ -103,7 +131,7 @@
           <th>Time</th>
           <th>Note</th>
           <th>ID</th>
-          <th style="width:120px">Thao tác</th>
+          <th style="width:110px">Thao tác</th>
         </tr>
         <tr class="filter-row">
           <th></th>
@@ -115,8 +143,8 @@
               <option value="done">Đã làm</option>
             </select>
           </th>
-          <th><input id="mspFilter" placeholder="lọc MSP"></th>
-          <th><input id="sdtFilter" placeholder="lọc SĐT"></th>
+          <th><input id="mspFilter" placeholder="MSP"></th>
+          <th><input id="sdtFilter" placeholder="SĐT"></th>
           <th>
             <select id="priceOp" style="width:42%;display:inline-block">
               <option value="">--</option>
@@ -128,9 +156,15 @@
             </select>
             <input id="priceFilter" placeholder="100000" style="width:56%;display:inline-block">
           </th>
-          <th><input id="staffFilter" placeholder="lọc NV"></th>
+          <th><input id="staffFilter" placeholder="NV"></th>
           <th></th>
-          <th><input id="noteFilter" placeholder="lọc note"></th>
+          <th>
+            <select id="noteFilter">
+              <option value="all">Tất cả</option>
+              <option value="has">Có note</option>
+              <option value="none">Không note</option>
+            </select>
+          </th>
           <th></th>
           <th><button id="btnClearFilters">Xóa lọc</button></th>
         </tr>
@@ -212,8 +246,14 @@ function fmtGia(v) {
   if (!n) return String(v || "");
   return n.toLocaleString("en-US");
 }
-function rawGia(v) {
-  return String(v || "").replace(/[^\d]/g, "");
+function rawGia(v) { return String(v || "").replace(/[^\d]/g, ""); }
+function msToText(ms) {
+  if (!ms || ms < 0) return "0p";
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0) return `${h}h${m}p`;
+  return `${m}p`;
 }
 
 function openLive(liveName) {
@@ -242,10 +282,10 @@ function contains(a,b) {
 function getFilteredRows() {
   const q = $("globalSearch").value.trim().toLowerCase();
   const doneF = $("doneFilter").value;
+  const noteF = $("noteFilter").value;
   const mspF = $("mspFilter").value.trim();
   const sdtF = $("sdtFilter").value.trim();
   const staffF = $("staffFilter").value.trim();
-  const noteF = $("noteFilter").value.trim();
   const op = $("priceOp").value;
   const priceVal = Number(rawGia($("priceFilter").value));
 
@@ -253,10 +293,13 @@ function getFilteredRows() {
     if (doneF === "todo" && isDone(r)) return false;
     if (doneF === "done" && !isDone(r)) return false;
 
+    const hasNote = String(r.note || "").trim() !== "";
+    if (noteF === "has" && !hasNote) return false;
+    if (noteF === "none" && hasNote) return false;
+
     if (mspF && !contains(r.msp, mspF)) return false;
     if (sdtF && !contains(r.sdt, sdtF)) return false;
     if (staffF && !contains(r.staff, staffF)) return false;
-    if (noteF && !contains(r.note, noteF)) return false;
 
     if (op && priceVal) {
       const p = Number(rawGia(r.gia));
@@ -284,9 +327,12 @@ function render() {
   if (!visibleRows.length) {
     tbody.innerHTML = `<tr><td colspan="11">Không có dữ liệu</td></tr>`;
     updateSelectedInfo();
+    updateStats();
     $("checkAll").checked = false;
     return;
   }
+
+  const frag = document.createDocumentFragment();
 
   visibleRows.forEach((r, index) => {
     const tr = document.createElement("tr");
@@ -318,11 +364,45 @@ function render() {
       td.addEventListener("input", () => tr.classList.add("changed"));
     });
 
-    tbody.appendChild(tr);
+    frag.appendChild(tr);
   });
 
+  tbody.appendChild(frag);
   $("checkAll").checked = visibleRows.length > 0 && visibleRows.every(r => selectedKeys.has(r.key));
   updateSelectedInfo();
+  updateStats();
+}
+
+function updateStats() {
+  if (!visibleRows.length) {
+    $("statsLine").innerHTML = "Thống kê: chưa có dữ liệu";
+    return;
+  }
+
+  const byStaff = {};
+  visibleRows.forEach(r => {
+    const staff = r.staff || "Không NV";
+    if (!byStaff[staff]) byStaff[staff] = { count: 0, min: null, max: null };
+    byStaff[staff].count++;
+    const t = Number(r.createdAt || 0);
+    if (t > 0) {
+      byStaff[staff].min = byStaff[staff].min == null ? t : Math.min(byStaff[staff].min, t);
+      byStaff[staff].max = byStaff[staff].max == null ? t : Math.max(byStaff[staff].max, t);
+    }
+  });
+
+  const parts = Object.keys(byStaff).sort().map(staff => {
+    const x = byStaff[staff];
+    const duration = x.min && x.max ? msToText(x.max - x.min) : "0p";
+    return `<b>${escapeHtml(staff)}</b>: ${x.count} đơn / ${duration}`;
+  });
+
+  const totalTodo = visibleRows.filter(r => !isDone(r)).length;
+  const totalDone = visibleRows.filter(r => isDone(r)).length;
+
+  $("statsLine").innerHTML =
+    `Thống kê theo dữ liệu đang lọc: Tổng <b>${visibleRows.length}</b> | Chưa làm <b>${totalTodo}</b> | Đã làm <b>${totalDone}</b> | ` +
+    parts.join(" | ");
 }
 
 function escapeHtml(s) {
@@ -351,6 +431,50 @@ async function copySelectedAndMarkDone() {
   selectedKeys.clear();
   render();
   alert(`Đã copy ${list.length} dòng và đánh dấu đã làm`);
+}
+
+async function markSelectedTodo() {
+  const list = selectedRows();
+  if (!list.length) return alert("Phải tick checkbox dòng cần chuyển");
+  await Promise.all(list.map(r => setDone(r.key, false)));
+  selectedKeys.clear();
+  render();
+}
+
+function exportSelectedExcel() {
+  const list = selectedRows();
+  if (!list.length) return alert("Phải tick checkbox dòng cần xuất Excel");
+
+  const headers = ["msp", "sdt", "gia", "staff", "time", "campaign", "note", "done"];
+  const rowsHtml = list.map(r => `
+    <tr>
+      <td>${escapeHtml(r.msp || "")}</td>
+      <td>${escapeHtml(r.sdt || "")}</td>
+      <td>${escapeHtml(rawGia(r.gia))}</td>
+      <td>${escapeHtml(r.staff || "")}</td>
+      <td>${escapeHtml(r.time || "")}</td>
+      <td>${escapeHtml(r.campaign || currentLive)}</td>
+      <td>${escapeHtml(r.note || "")}</td>
+      <td>${isDone(r) ? "Đã làm" : "Chưa làm"}</td>
+    </tr>
+  `).join("");
+
+  const html = `
+    <html><head><meta charset="utf-8"></head><body>
+    <table border="1">
+      <thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    </body></html>
+  `;
+
+  const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `quetbill_${safeKey(currentLive)}_${list.length}_dong.xls`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 async function saveRow(tr) {
@@ -449,6 +573,7 @@ $("liveSelect").addEventListener("change", () => $("customLive").value = $("live
   "globalSearch", "doneFilter", "mspFilter", "sdtFilter", "staffFilter", "noteFilter", "priceOp", "priceFilter"
 ].forEach(id => $(id).addEventListener("input", render));
 $("doneFilter").addEventListener("change", render);
+$("noteFilter").addEventListener("change", render);
 $("priceOp").addEventListener("change", render);
 
 $("checkAll").addEventListener("change", (e) => {
@@ -458,10 +583,13 @@ $("checkAll").addEventListener("change", (e) => {
 });
 
 $("btnCopySelected").addEventListener("click", copySelectedAndMarkDone);
+$("btnMarkTodo").addEventListener("click", markSelectedTodo);
+$("btnExportSelected").addEventListener("click", exportSelectedExcel);
 $("btnAdd").addEventListener("click", addRow);
 $("btnClearFilters").addEventListener("click", () => {
-  ["globalSearch","mspFilter","sdtFilter","staffFilter","noteFilter","priceFilter"].forEach(id => $(id).value = "");
+  ["globalSearch","mspFilter","sdtFilter","staffFilter","priceFilter"].forEach(id => $(id).value = "");
   $("doneFilter").value = "all";
+  $("noteFilter").value = "all";
   $("priceOp").value = "";
   selectedKeys.clear();
   render();
