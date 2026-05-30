@@ -77,6 +77,8 @@
     .todo-pill { background:#e8f5e9; color:#1b5e20; }
     .done-pill { background:#eeeeee; color:#555; }
     .check { width:16px; height:16px; }
+    .sortable { cursor:pointer; user-select:none; }
+    .sortable:hover { background:#1565c0; }
     .login-box {
       background:#fff; border:1px solid #ddd; margin:10px; padding:10px;
       border-radius:8px; max-width:480px;
@@ -122,7 +124,7 @@
       <thead>
         <tr>
           <th style="width:38px"><input id="checkAll" type="checkbox" class="check"></th>
-          <th style="width:52px">STT</th>
+          <th id="sttHeader" class="sortable" style="width:52px">STT ▲</th>
           <th style="width:85px">Đã làm</th>
           <th>MSP</th>
           <th>SĐT</th>
@@ -202,6 +204,7 @@ let rows = [];
 let visibleRows = [];
 let selectedKeys = new Set();
 let unsubscribe = null;
+let sortNewestFirst = false; // mặc định: cũ nhất trước
 
 function safeKey(text) {
   return String(text || "")
@@ -256,6 +259,21 @@ function msToText(ms) {
   return `${m}p`;
 }
 
+function sortRows() {
+  rows.sort((a,b) => {
+    const aa = Number(a.createdAt || 0);
+    const bb = Number(b.createdAt || 0);
+    return sortNewestFirst ? (bb - aa) : (aa - bb);
+  });
+}
+
+function updateSttHeader() {
+  const h = $("sttHeader");
+  if (!h) return;
+  const count = visibleRows.length || rows.length || 0;
+  h.textContent = sortNewestFirst ? `STT ▼ (${count})` : `STT ▲ (${count})`;
+}
+
 function openLive(liveName) {
   if (!liveName) return alert("Chưa nhập LIVE");
   currentLive = liveName;
@@ -269,7 +287,7 @@ function openLive(liveName) {
   unsubscribe = onValue(liveRef, (snap) => {
     const val = snap.val() || {};
     rows = Object.keys(val).map(key => ({ key, ...val[key] }));
-    rows.sort((a,b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+    sortRows();
     render();
     setStatus(`${currentLive} | Tổng: ${rows.length}`);
   }, err => alert("Firebase lỗi: " + err.message));
@@ -323,6 +341,7 @@ function render() {
   const tbody = $("tbody");
   tbody.innerHTML = "";
   visibleRows = getFilteredRows();
+  updateSttHeader();
 
   if (!visibleRows.length) {
     tbody.innerHTML = `<tr><td colspan="11">Không có dữ liệu</td></tr>`;
@@ -579,6 +598,13 @@ $("priceOp").addEventListener("change", render);
 $("checkAll").addEventListener("change", (e) => {
   if (e.target.checked) visibleRows.forEach(r => selectedKeys.add(r.key));
   else visibleRows.forEach(r => selectedKeys.delete(r.key));
+  render();
+});
+
+$("sttHeader").addEventListener("click", () => {
+  sortNewestFirst = !sortNewestFirst;
+  sortRows();
+  selectedKeys.clear();
   render();
 });
 
