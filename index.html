@@ -77,8 +77,6 @@
     .todo-pill { background:#e8f5e9; color:#1b5e20; }
     .done-pill { background:#eeeeee; color:#555; }
     .check { width:16px; height:16px; }
-    .sortable { cursor:pointer; user-select:none; }
-    .sortable:hover { background:#1565c0; }
     .login-box {
       background:#fff; border:1px solid #ddd; margin:10px; padding:10px;
       border-radius:8px; max-width:480px;
@@ -102,6 +100,7 @@
     <button id="btnCopySelected" class="green">Copy 3 cột</button>
     <button id="btnMarkTodo" class="orange">Chuyển chưa làm</button>
     <button id="btnExportSelected" class="primary">Xuất Excel chọn</button>
+    <button id="btnDeleteSelected" class="danger">Xóa dòng chọn</button>
     <button id="btnAdd" class="primary">Thêm</button>
 
     <span id="selectedInfo" class="status">Chọn: 0</span>
@@ -124,7 +123,7 @@
       <thead>
         <tr>
           <th style="width:38px"><input id="checkAll" type="checkbox" class="check"></th>
-          <th id="sttHeader" class="sortable" style="width:52px">STT ▲</th>
+          <th style="width:58px">STT</th>
           <th style="width:85px">Đã làm</th>
           <th>MSP</th>
           <th>SĐT</th>
@@ -137,7 +136,15 @@
         </tr>
         <tr class="filter-row">
           <th></th>
-          <th></th>
+          <th>
+            <select id="sttLimit">
+              <option value="all">Tất cả</option>
+              <option value="20">20 mới</option>
+              <option value="50">50 mới</option>
+              <option value="100">100 mới</option>
+              <option value="200">200 mới</option>
+            </select>
+          </th>
           <th>
             <select id="doneFilter">
               <option value="all">Tất cả</option>
@@ -204,7 +211,7 @@ let rows = [];
 let visibleRows = [];
 let selectedKeys = new Set();
 let unsubscribe = null;
-let sortNewestFirst = false; // mặc định: cũ nhất ở trên
+let sttMap = new Map();
 
 function safeKey(text) {
   return String(text || "")
@@ -259,18 +266,12 @@ function msToText(ms) {
   return `${m}p`;
 }
 
-function sortRows() {
-  rows.sort((a, b) => {
-    const aa = Number(a.createdAt || 0);
-    const bb = Number(b.createdAt || 0);
-    return sortNewestFirst ? (bb - aa) : (aa - bb);
-  });
-}
-
-function updateSttHeader() {
-  const h = $("sttHeader");
-  if (!h) return;
-  h.textContent = sortNewestFirst ? "STT ▼" : "STT ▲";
+function buildSttMap() {
+  sttMap = new Map(
+    [...rows]
+      .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0))
+      .map((r, i) => [r.key, i + 1])
+  );
 }
 
 function openLive(liveName) {
@@ -286,7 +287,8 @@ function openLive(liveName) {
   unsubscribe = onValue(liveRef, (snap) => {
     const val = snap.val() || {};
     rows = Object.keys(val).map(key => ({ key, ...val[key] }));
-    sortRows();
+    rows.sort((a,b) => Number(a.createdAt || 0) - Number(b.createdAt || 0)); // mặc định cũ trên đầu
+    buildSttMap();
     render();
     setStatus(`${currentLive} | Tổng: ${rows.length}`);
   }, err => alert("Firebase lỗi: " + err.message));
@@ -294,6 +296,16 @@ function openLive(liveName) {
 
 function contains(a,b) {
   return String(a || "").toLowerCase().includes(String(b || "").toLowerCase());
+}
+
+function getBaseRowsBySttLimit() {
+  const limit = $("sttLimit").value;
+  if (limit === "all") return rows;
+
+  const n = Number(limit);
+  if (!n || rows.length <= n) return rows;
+
+  return rows.slice(-n); // lấy n đơn mới nhất, vẫn giữ thứ tự cũ -> mới trong nhóm đó
 }
 
 function getFilteredRows() {
@@ -306,7 +318,7 @@ function getFilteredRows() {
   const op = $("priceOp").value;
   const priceVal = Number(rawGia($("priceFilter").value));
 
-  return rows.filter(r => {
+  return getBaseRowsBySttLimit().filter(r => {
     if (doneF === "todo" && isDone(r)) return false;
     if (doneF === "done" && !isDone(r)) return false;
 
@@ -340,7 +352,6 @@ function render() {
   const tbody = $("tbody");
   tbody.innerHTML = "";
   visibleRows = getFilteredRows();
-  updateSttHeader();
 
   if (!visibleRows.length) {
     tbody.innerHTML = `<tr><td colspan="11">Không có dữ liệu</td></tr>`;
@@ -352,7 +363,7 @@ function render() {
 
   const frag = document.createDocumentFragment();
 
-  visibleRows.forEach((r, index) => {
+  visibleRows.forEach((r) => {
     const tr = document.createElement("tr");
     tr.dataset.key = r.key;
     tr.classList.add(isDone(r) ? "done" : "todo");
@@ -360,7 +371,7 @@ function render() {
 
     tr.innerHTML = `
       <td><input class="rowCheck check" type="checkbox" ${selectedKeys.has(r.key) ? "checked" : ""}></td>
-      <td class="num">${index + 1}</td>
+      <td class="num">${sttMap.get(r.key) || ""}</td>
       <td>${isDone(r) ? '<span class="pill done-pill">Đã làm</span>' : '<span class="pill todo-pill">Chưa làm</span>'}</td>
       <td contenteditable="true" data-field="msp" class="msp">${escapeHtml(r.msp || "")}</td>
       <td contenteditable="true" data-field="sdt">${escapeHtml(r.sdt || "")}</td>
@@ -459,13 +470,24 @@ async function markSelectedTodo() {
   render();
 }
 
+async function deleteSelectedRows() {
+  const list = selectedRows();
+  if (!list.length) return alert("Phải tick checkbox dòng cần xóa");
+  if (!confirm(`Xóa ${list.length} dòng khỏi Firebase? App đang mở LIVE này cũng sẽ mất các dòng đó.`)) return;
+
+  await Promise.all(list.map(r => remove(ref(db, `campaigns/${currentLiveKey}/scans/${r.key}`))));
+  selectedKeys.clear();
+  render();
+}
+
 function exportSelectedExcel() {
   const list = selectedRows();
   if (!list.length) return alert("Phải tick checkbox dòng cần xuất Excel");
 
-  const headers = ["msp", "sdt", "gia", "staff", "time", "campaign", "note", "done"];
+  const headers = ["stt", "msp", "sdt", "gia", "staff", "time", "campaign", "note", "done"];
   const rowsHtml = list.map(r => `
     <tr>
+      <td>${sttMap.get(r.key) || ""}</td>
       <td>${escapeHtml(r.msp || "")}</td>
       <td>${escapeHtml(r.sdt || "")}</td>
       <td>${escapeHtml(rawGia(r.gia))}</td>
@@ -588,8 +610,9 @@ $("btnUseLive").addEventListener("click", () => openLive($("customLive").value.t
 $("liveSelect").addEventListener("change", () => $("customLive").value = $("liveSelect").value);
 
 [
-  "globalSearch", "doneFilter", "mspFilter", "sdtFilter", "staffFilter", "noteFilter", "priceOp", "priceFilter"
+  "globalSearch", "sttLimit", "doneFilter", "mspFilter", "sdtFilter", "staffFilter", "noteFilter", "priceOp", "priceFilter"
 ].forEach(id => $(id).addEventListener("input", render));
+$("sttLimit").addEventListener("change", render);
 $("doneFilter").addEventListener("change", render);
 $("noteFilter").addEventListener("change", render);
 $("priceOp").addEventListener("change", render);
@@ -600,19 +623,14 @@ $("checkAll").addEventListener("change", (e) => {
   render();
 });
 
-$("sttHeader").addEventListener("click", () => {
-  sortNewestFirst = !sortNewestFirst;
-  sortRows();
-  selectedKeys.clear();
-  render();
-});
-
 $("btnCopySelected").addEventListener("click", copySelectedAndMarkDone);
 $("btnMarkTodo").addEventListener("click", markSelectedTodo);
 $("btnExportSelected").addEventListener("click", exportSelectedExcel);
+$("btnDeleteSelected").addEventListener("click", deleteSelectedRows);
 $("btnAdd").addEventListener("click", addRow);
 $("btnClearFilters").addEventListener("click", () => {
   ["globalSearch","mspFilter","sdtFilter","staffFilter","priceFilter"].forEach(id => $(id).value = "");
+  $("sttLimit").value = "all";
   $("doneFilter").value = "all";
   $("noteFilter").value = "all";
   $("priceOp").value = "";
