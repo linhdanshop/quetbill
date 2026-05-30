@@ -22,10 +22,10 @@
       padding:3px 10px 3px 4px;
       border-right:2px solid #1976d2;
     }
-    input, select, button {
-      height:30px; padding:3px 7px; border:1px solid #bbb;
-      border-radius:5px; font-size:13px; background:#fff;
+    input, select, button, textarea {
+      border:1px solid #bbb; border-radius:5px; font-size:13px; background:#fff;
     }
+    input, select, button { height:30px; padding:3px 7px; }
     button { cursor:pointer; font-weight:700; }
     .primary { background:#1976d2; color:#fff; border-color:#1976d2; }
     .green { background:#2e7d32; color:#fff; border-color:#2e7d32; }
@@ -82,6 +82,24 @@
       border-radius:8px; max-width:480px;
     }
     .login-box input { width:100%; margin:4px 0; }
+
+    .modal {
+      position: fixed; inset:0; z-index:99;
+      background:rgba(0,0,0,.35);
+      display:none; align-items:center; justify-content:center;
+      padding:12px;
+    }
+    .modal.show { display:flex; }
+    .modal-card {
+      width:min(520px, 100%);
+      background:#fff; border-radius:10px;
+      padding:14px; box-shadow:0 10px 30px rgba(0,0,0,.25);
+    }
+    .modal-card h2 { margin:0 0 10px; font-size:18px; color:#0d47a1; }
+    .form-grid { display:grid; grid-template-columns:90px 1fr; gap:8px; align-items:center; }
+    .form-grid input, .form-grid textarea { width:100%; padding:8px; font-size:15px; }
+    .form-grid textarea { min-height:72px; resize:vertical; }
+    .modal-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; justify-content:flex-end; }
     .hidden { display:none; }
   </style>
 </head>
@@ -183,6 +201,24 @@
   </div>
 </div>
 
+<div id="editModal" class="modal">
+  <div class="modal-card">
+    <h2>Sửa dòng</h2>
+    <div class="form-grid">
+      <label>MSP</label><input id="editMsp" />
+      <label>SĐT</label><input id="editSdt" />
+      <label>Giá</label><input id="editGia" inputmode="numeric" />
+      <label>NV</label><input id="editStaff" />
+      <label>Note</label><textarea id="editNote"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button id="btnModalClose">Đóng</button>
+      <button id="btnModalDelete" class="danger">Xóa dòng</button>
+      <button id="btnModalSave" class="green">Lưu</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
@@ -210,6 +246,8 @@ let visibleRows = [];
 let selectedKeys = new Set();
 let unsubscribe = null;
 let sttMap = new Map();
+let editingKey = null;
+let renderTimer = null;
 
 function safeKey(text) {
   return String(text || "")
@@ -287,9 +325,14 @@ function openLive(liveName) {
     rows = Object.keys(val).map(key => ({ key, ...val[key] }));
     rows.sort((a,b) => Number(a.createdAt || 0) - Number(b.createdAt || 0)); // mặc định cũ trên đầu
     buildSttMap();
-    render();
+    scheduleRender();
     setStatus(`${currentLive} | Tổng: ${rows.length}`);
   }, err => alert("Firebase lỗi: " + err.message));
+}
+
+function scheduleRender() {
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(render, 80);
 }
 
 function contains(a,b) {
@@ -391,6 +434,8 @@ function render() {
       td.addEventListener("input", () => tr.classList.add("changed"));
     });
 
+    tr.addEventListener("dblclick", () => openEditModal(r.key));
+
     frag.appendChild(tr);
   });
 
@@ -428,7 +473,7 @@ function updateStats() {
   const totalDone = visibleRows.filter(r => isDone(r)).length;
 
   $("statsLine").innerHTML =
-    `Thống kê theo dữ liệu đang lọc: Tổng <b>${visibleRows.length}</b> | Chưa làm <b>${totalTodo}</b> | Đã làm <b>${totalDone}</b> | ` +
+    `Thống kê dữ liệu đang lọc: Tổng <b>${visibleRows.length}</b> | Chưa làm <b>${totalTodo}</b> | Đã làm <b>${totalDone}</b> | ` +
     parts.join(" | ");
 }
 
@@ -439,12 +484,17 @@ function escapeHtml(s) {
 function selectedRows() { return rows.filter(r => selectedKeys.has(r.key)); }
 function updateSelectedInfo() { $("selectedInfo").textContent = `Chọn: ${selectedKeys.size}`; }
 
-async function setDone(key, done) {
-  await update(ref(db, `campaigns/${currentLiveKey}/scans/${key}`), {
-    done,
-    doneAt: done ? serverTimestamp() : null,
-    sheetStatus: "pending"
+async function batchSetDone(list, done) {
+  const updates = {};
+  const now = Date.now();
+
+  list.forEach(r => {
+    updates[`campaigns/${currentLiveKey}/scans/${r.key}/done`] = done;
+    updates[`campaigns/${currentLiveKey}/scans/${r.key}/doneAt`] = done ? now : null;
+    updates[`campaigns/${currentLiveKey}/scans/${r.key}/sheetStatus`] = "pending";
   });
+
+  await update(ref(db), updates);
 }
 
 async function copySelectedAndMarkDone() {
@@ -453,7 +503,7 @@ async function copySelectedAndMarkDone() {
 
   const text = list.map(r => `${r.msp || ""}\t${r.sdt || ""}\t${rawGia(r.gia)}`).join("\n");
   await navigator.clipboard.writeText(text);
-  await Promise.all(list.map(r => setDone(r.key, true)));
+  await batchSetDone(list, true);
 
   selectedKeys.clear();
   render();
@@ -463,7 +513,7 @@ async function copySelectedAndMarkDone() {
 async function markSelectedTodo() {
   const list = selectedRows();
   if (!list.length) return alert("Phải tick checkbox dòng cần chuyển");
-  await Promise.all(list.map(r => setDone(r.key, false)));
+  await batchSetDone(list, false);
   selectedKeys.clear();
   render();
 }
@@ -473,7 +523,12 @@ async function deleteSelectedRows() {
   if (!list.length) return alert("Phải tick checkbox dòng cần xóa");
   if (!confirm(`Xóa ${list.length} dòng khỏi Firebase? App đang mở LIVE này cũng sẽ mất các dòng đó.`)) return;
 
-  await Promise.all(list.map(r => remove(ref(db, `campaigns/${currentLiveKey}/scans/${r.key}`))));
+  const updates = {};
+  list.forEach(r => {
+    updates[`campaigns/${currentLiveKey}/scans/${r.key}`] = null;
+  });
+
+  await update(ref(db), updates);
   selectedKeys.clear();
   render();
 }
@@ -525,10 +580,17 @@ async function saveRow(tr) {
     data[td.dataset.field] = td.dataset.field === "gia" ? rawGia(td.textContent) : td.textContent.trim();
   });
 
+  await saveRowData(old, data);
+  tr.classList.remove("changed");
+}
+
+async function saveRowData(old, data) {
   data.updatedAt = serverTimestamp();
   data.sheetStatus = "pending";
 
+  const key = old.key;
   const newId = makeId(old.campaign || currentLive, data.msp, data.sdt);
+
   if ((data.msp !== old.msp || data.sdt !== old.sdt) && newId !== key) {
     if (!confirm("MSP/SĐT thay đổi nên tạo dòng mới và xóa dòng cũ. Tiếp tục?")) return;
 
@@ -548,15 +610,53 @@ async function saveRow(tr) {
 
   data.id = old.id || key;
   await update(ref(db, `campaigns/${currentLiveKey}/scans/${key}`), data);
-  tr.classList.remove("changed");
+}
+
+async function deleteRowByKey(key) {
+  if (!key) return;
+  const old = rows.find(r => r.key === key);
+  const info = old ? `${old.msp || ""} | ${old.sdt || ""} | ${fmtGia(old.gia)}` : key;
+  if (!confirm(`Xóa dòng này khỏi Firebase?\n${info}\n\nApp đang mở LIVE này cũng sẽ mất dòng đó.`)) return;
+  await remove(ref(db, `campaigns/${currentLiveKey}/scans/${key}`));
+  selectedKeys.delete(key);
+  closeEditModal();
 }
 
 async function deleteRow(tr) {
-  const key = tr.dataset.key;
-  if (!key) return;
-  if (!confirm("Xóa dòng này khỏi Firebase? App đang mở LIVE này cũng sẽ mất dòng đó.")) return;
-  await remove(ref(db, `campaigns/${currentLiveKey}/scans/${key}`));
-  selectedKeys.delete(key);
+  await deleteRowByKey(tr.dataset.key);
+}
+
+function openEditModal(key) {
+  const r = rows.find(x => x.key === key);
+  if (!r) return;
+
+  editingKey = key;
+  $("editMsp").value = r.msp || "";
+  $("editSdt").value = r.sdt || "";
+  $("editGia").value = rawGia(r.gia);
+  $("editStaff").value = r.staff || "";
+  $("editNote").value = r.note || "";
+  $("editModal").classList.add("show");
+}
+
+function closeEditModal() {
+  editingKey = null;
+  $("editModal").classList.remove("show");
+}
+
+async function saveEditModal() {
+  const old = rows.find(r => r.key === editingKey);
+  if (!old) return;
+
+  await saveRowData(old, {
+    msp: $("editMsp").value.trim(),
+    sdt: $("editSdt").value.trim(),
+    gia: rawGia($("editGia").value),
+    staff: $("editStaff").value.trim(),
+    note: $("editNote").value.trim()
+  });
+
+  closeEditModal();
 }
 
 async function addRow() {
@@ -609,11 +709,11 @@ $("liveSelect").addEventListener("change", () => $("customLive").value = $("live
 
 [
   "globalSearch", "sttLimit", "doneFilter", "mspFilter", "sdtFilter", "staffFilter", "noteFilter", "priceOp", "priceFilter"
-].forEach(id => $(id).addEventListener("input", render));
-$("sttLimit").addEventListener("change", render);
-$("doneFilter").addEventListener("change", render);
-$("noteFilter").addEventListener("change", render);
-$("priceOp").addEventListener("change", render);
+].forEach(id => $(id).addEventListener("input", scheduleRender));
+$("sttLimit").addEventListener("change", scheduleRender);
+$("doneFilter").addEventListener("change", scheduleRender);
+$("noteFilter").addEventListener("change", scheduleRender);
+$("priceOp").addEventListener("change", scheduleRender);
 
 $("checkAll").addEventListener("change", (e) => {
   if (e.target.checked) visibleRows.forEach(r => selectedKeys.add(r.key));
@@ -635,6 +735,13 @@ $("btnClearFilters").addEventListener("click", () => {
   selectedKeys.clear();
   render();
 });
+
+$("btnModalClose").addEventListener("click", closeEditModal);
+$("editModal").addEventListener("click", (e) => {
+  if (e.target.id === "editModal") closeEditModal();
+});
+$("btnModalSave").addEventListener("click", saveEditModal);
+$("btnModalDelete").addEventListener("click", () => deleteRowByKey(editingKey));
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
